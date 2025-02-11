@@ -4,27 +4,32 @@ import { type ImageSource } from "expo-image";
 import { Link } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker"; // this acts as a method
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import IconButton from "@/components/IconButton";
 import CircleButton from "@/components/CircleButton";
 import EmojiPicker from "@/components/EmojiPicker";
 import EmojiList from "@/components/EmojiList";
 import EmojiSticker from "@/components/EmojiSticker";
+import * as MediaLibrary from "expo-media-library";
+import { captureRef } from "react-native-view-shot";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // variable to hold the placeholder image
 const placeHolderImage = require("../../assets/images/background-image.png");
 
-
 export default function Index() {
+  const imageRef = useRef<View>(null);
+  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
   // lets have a usestate here to hold data
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined
   );
   const [showAppOptions, setShowAppOptions] = useState<boolean>(false);
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
-  const [pickedEmoji, setPickedEmoji] = useState<ImageSource | undefined>(undefined)
-
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  const [pickedEmoji, setPickedEmoji] = useState<ImageSource | undefined>(
+    undefined
+  );
 
   // function to pick an image from the gallery
   const pickImageAsync = async () => {
@@ -59,6 +64,19 @@ export default function Index() {
   // function for onSave image
   const onSaveImageAsync = async () => {
     // save image logic here later
+    try {
+      const localUri = await captureRef(imageRef, {
+        height: 440,
+        quality: 1,
+      });
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      if (localUri) {
+        alert("Image saved successfully!");
+      }
+    } catch (error) {
+      console.log("Error saving image", error);
+      alert("Error saving image");
+    }
     // console.log("Image saved");
   };
 
@@ -67,26 +85,33 @@ export default function Index() {
     setIsModalVisible(false);
   };
 
+  useEffect(() => {
+    if (!permissionResponse?.granted) {
+      requestPermission();
+    }
+  }, []);
 
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       <View style={styles.imageContainer}>
-        {/* <Image
-          source={placeHolderImage}
-          style={styles.image}
-          /> */}
-        <ImageViewer imgSource={selectedImage || placeHolderImage} />
-        {pickedEmoji && (
-          <EmojiSticker imageSize={40} stickerSource={pickedEmoji} />
-        )}
+        <View ref={imageRef} collapsable={false}>
+          <ImageViewer imgSource={selectedImage || placeHolderImage} />
+          {pickedEmoji && (
+            <EmojiSticker imageSize={40} stickerSource={pickedEmoji} />
+          )}
+        </View>
       </View>
 
       {showAppOptions ? (
         <View style={styles.optionsContainer}>
           <View style={styles.optionsRow}>
-            <IconButton icon="refresh" label="Reset" onPress={onReset}/>
-            <CircleButton onPress={onAddSticker}/>
-            <IconButton icon="save-alt" label="Save" onPress={onSaveImageAsync}/>
+            <IconButton icon="refresh" label="Reset" onPress={onReset} />
+            <CircleButton onPress={onAddSticker} />
+            <IconButton
+              icon="save-alt"
+              label="Save"
+              onPress={onSaveImageAsync}
+            />
           </View>
         </View>
       ) : (
@@ -96,16 +121,16 @@ export default function Index() {
             label="Choose a Pic"
             theme="primary"
           />
-          <Button label="Use this Pic" onPress={() => setShowAppOptions(true)} />
+          <Button
+            label="Use this Pic"
+            onPress={() => setShowAppOptions(true)}
+          />
         </View>
       )}
       <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
-        <EmojiList
-          onSelect={setPickedEmoji}
-          onCloseModal={onModalClose}
-        />
+        <EmojiList onSelect={setPickedEmoji} onCloseModal={onModalClose} />
       </EmojiPicker>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 

@@ -1,21 +1,71 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
-import { Image, ImageSource } from 'expo-image';
+import { StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { Image, ImageSource } from "expo-image";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+
 
 type Props = {
-    imageSize: number;
-    stickerSource: ImageSource;
-}
+  imageSize: number;
+  stickerSource: ImageSource;
+};
 
 export default function EmojiSticker({ imageSize, stickerSource }: Props) {
+  const scaleImage = useSharedValue(imageSize);
 
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
 
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onStart(() => {
+      if (scaleImage.value !== imageSize * 2) {
+        // scaleImage.value = withSpring(imageSize * 1.5);
+        scaleImage.value = scaleImage.value * 2;
+      } else {
+        scaleImage.value = Math.round(scaleImage.value / 2);
+      }
+    });
+
+  const drag = Gesture.Pan().onChange((event) => {
+    translateX.value += event.changeX;
+    translateY.value += event.changeY;
+  });
+
+  const imageStyle = useAnimatedStyle(() => {
+    return {
+      width: withSpring(scaleImage.value),
+      height: withSpring(scaleImage.value),
+    };
+  });
+
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+      ],
+    };
+  });
 
   return (
-    <View style={{top: -10}}>
-      <Image source={stickerSource} style={{width:imageSize,height:imageSize}}/>
-    </View>
-  )
+    <GestureDetector gesture={drag}>
+      <Animated.View style={[containerStyle, { top: -10 }]}>
+        <GestureDetector gesture={doubleTap}>
+          <Animated.Image
+            resizeMode={"contain"}
+            source={stickerSource}
+            style={[imageStyle, { width: imageSize, height: imageSize }]}
+          />
+          {/* <Image source={stickerSource} style={{width:imageSize,height:imageSize}}/> */}
+        </GestureDetector>
+      </Animated.View>
+    </GestureDetector>
+  );
 }
 
 // const styles = StyleSheet.create({})
